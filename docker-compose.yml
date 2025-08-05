@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: health-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEFAULT_MODEL=gemini-2.0-flash-lite
+      - GOOGLE_GENAI_USE_VERTEXAI=false
+      - GOOGLE_CLOUD_PROJECT=gen-lang-client-0390668195
+      - GOOGLE_CLOUD_LOCATION=us-central1
+      - GOOGLE_API_KEY=AIzaSyCgR9YleolOQBFnZ3U7wM_hPIQ9upzVji0
+    volumes:
+      - ./backend/database:/app/database
+    networks:
+      - health-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./health-copilot-frontend
+      dockerfile: Dockerfile
+    container_name: health-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - health-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  health-network:
+    driver: bridge
+
+volumes:
+  database:
+    driver: local 
